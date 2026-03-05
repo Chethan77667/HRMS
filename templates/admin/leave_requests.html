@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Requests - Admin{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col gap-4">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-800">Leave Portal</h1>
+            <p class="text-slate-500 mt-1">Review and action leave applications.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('admin_dashboard') }}"
+                class="inline-flex items-center px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold shadow-sm">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+            </a>
+            <button type="button" onclick="showDeleteAllLeavesModal()"
+                class="inline-flex items-center px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-sm">
+                <i class="fas fa-trash-alt mr-2"></i> Delete All
+            </button>
+        </div>
+    </div>
+
+    <form method="get" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+        <div class="w-full sm:w-64">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Search</label>
+            <div class="relative">
+                <input type="text" name="q" value="{{ q or '' }}" placeholder="Name, type, reason, status"
+                    class="w-full pr-10 pl-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                <button type="submit"
+                    class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-indigo-600">
+                    <i class="fas fa-search text-sm"></i>
+                </button>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Month</label>
+            <input type="month" name="month" value="{{ month or '' }}"
+                class="w-full sm:w-40 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+        </div>
+        <div class="flex gap-2">
+            <button type="submit"
+                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">
+                Filter
+            </button>
+            <a href="{{ url_for('admin_leaves') }}"
+                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold shadow-sm">
+                Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="px-6 py-4">Lecturer</th>
+                    <th class="px-6 py-4">Type</th>
+                    <th class="px-6 py-4">Duration</th>
+                    <th class="px-6 py-4">Reason</th>
+                    <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                {% if leaves %}
+                    {% for leave in leaves %}
+                    <tr>
+                        <td class="px-6 py-4 font-bold text-slate-700">{{ leave.lecturer_name }}</td>
+                        <td class="px-6 py-4 text-sm">{{ leave.type }}</td>
+                        <td class="px-6 py-4 text-xs text-slate-500">{{ leave.from_date }} to {{ leave.to_date }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500 truncate max-w-[200px]">{{ leave.reason }}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase 
+                                {% if leave.status == 'Approved' %}bg-green-100 text-green-700
+                                {% elif leave.status == 'Rejected' %}bg-red-100 text-red-700
+                                {% elif leave.status == 'Cancelled' %}bg-slate-100 text-slate-600
+                                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {{ leave.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if leave.status == 'Pending' %}
+                            <div class="flex items-center gap-2">
+                                <form method="post"
+                                    action="{{ url_for('review_leave', id=leave._id|string, status='Approved') }}">
+                                    <button type="submit"
+                                        class="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 transition-colors">
+                                        Approve
+                                    </button>
+                                </form>
+                                <form method="post"
+                                    action="{{ url_for('review_leave', id=leave._id|string, status='Rejected') }}">
+                                    <button type="submit"
+                                        class="text-xs bg-rose-600 text-white px-3 py-1 rounded hover:bg-rose-700 transition-colors">
+                                        Reject
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="text-slate-400 text-xs italic">No actions available</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td class="px-6 py-6 text-sm text-slate-500" colspan="6">
+                            No leave records found for the selected filters.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- Delete All Leaves Confirmation Modal (with verification code) -->
+<div id="deleteAllLeavesModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all">
+        <div class="p-6">
+            <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-rose-100 rounded-full">
+                <i class="fas fa-exclamation-triangle text-rose-600 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 text-center mb-2">Delete All Leave Records?</h3>
+            <p class="text-slate-600 text-center mb-4">
+                This will permanently remove <strong>all leave applications</strong> and cannot be undone.
+            </p>
+            <div class="mb-4 text-center">
+                <p class="text-xs font-semibold text-slate-500 mb-2">
+                    Type the following code to confirm:
+                </p>
+                <div
+                    class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-slate-900 text-white font-mono text-sm tracking-[0.35em]"
+                    id="deleteAllLeavesCodeDisplay">
+                    -----
+                </div>
+            </div>
+            <form id="deleteAllLeavesForm" method="POST" action="{{ url_for('admin_leaves_delete_all') }}"
+                class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Enter code exactly</label>
+                    <input type="text" id="deleteAllLeavesCodeInput" autocomplete="off"
+                        class="w-full px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 font-mono text-sm uppercase">
+                    <p id="deleteAllLeavesCodeError" class="mt-1 text-xs text-rose-600 hidden">
+                        Code does not match. Please try again.
+                    </p>
+                </div>
+                <div class="flex gap-3 pt-1">
+                    <button type="button" onclick="hideDeleteAllLeavesModal()"
+                        class="flex-1 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-lg shadow-rose-200 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i> Delete All
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let deleteAllLeavesVerificationCode = null;
+
+    function generateDeleteAllLeavesCode() {
+        return Math.random().toString(36).substring(2, 7).toUpperCase();
+    }
+
+    function showDeleteAllLeavesModal() {
+        const modal = document.getElementById('deleteAllLeavesModal');
+        const codeDisplay = document.getElementById('deleteAllLeavesCodeDisplay');
+        const codeInput = document.getElementById('deleteAllLeavesCodeInput');
+        const error = document.getElementById('deleteAllLeavesCodeError');
+
+        deleteAllLeavesVerificationCode = generateDeleteAllLeavesCode();
+        codeDisplay.textContent = deleteAllLeavesVerificationCode;
+        codeInput.value = '';
+        error.classList.add('hidden');
+
+        modal.classList.remove('hidden');
+        codeInput.focus();
+    }
+
+    function hideDeleteAllLeavesModal() {
+        document.getElementById('deleteAllLeavesModal').classList.add('hidden');
+    }
+
+    document.getElementById('deleteAllLeavesModal').addEventListener('click', function (e) {
+        if (e.target === this) {
+            hideDeleteAllLeavesModal();
+        }
+    });
+
+    document.getElementById('deleteAllLeavesForm').addEventListener('submit', function (e) {
+        const input = document.getElementById('deleteAllLeavesCodeInput');
+        const error = document.getElementById('deleteAllLeavesCodeError');
+        const entered = (input.value || '').trim().toUpperCase();
+
+        if (!deleteAllLeavesVerificationCode || entered !== deleteAllLeavesVerificationCode) {
+            e.preventDefault();
+            error.classList.remove('hidden');
+            input.focus();
+        }
+    });
+</script>
+{% endblock %}

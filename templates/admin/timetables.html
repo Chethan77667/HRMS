@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Timetabling - HRMS{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Faculty Timetables</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            Upload a PDF containing individual faculty timetables. Each page should correspond to one faculty member.
+        </p>
+    </div>
+    <a href="{{ url_for('admin_dashboard') }}"
+        class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold shadow-sm">
+        <i class="fas fa-arrow-left mr-2"></i>
+        Back to Dashboard
+    </a>
+</div>
+
+{% if error %}
+<div class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-2">
+    {{ error }}
+</div>
+{% endif %}
+
+{% if message %}
+<div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-2">
+    {{ message }}
+</div>
+{% endif %}
+
+<div class="mb-8 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+    <h2 class="text-lg font-semibold text-slate-800 mb-4">Upload Timetable PDF</h2>
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Select PDF file</label>
+            <input type="file" name="timetable_pdf" accept="application/pdf"
+                class="block w-full text-sm text-slate-700 border border-slate-300 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500" />
+            <p class="mt-1 text-xs text-slate-400">
+                The system will read each page, detect the <span class="font-semibold">FACULTY: Name</span> line, and
+                link it to the matching lecturer record.
+            </p>
+        </div>
+        <button type="submit"
+            class="inline-flex items-center px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold shadow-sm">
+            <i class="fas fa-upload mr-2"></i>
+            Upload &amp; Process
+        </button>
+    </form>
+</div>
+
+<div class="mb-4 flex flex-wrap gap-3 items-center">
+    <div class="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold">
+        Total Lecturers: {{ total }}
+    </div>
+    <div class="px-3 py-2 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold">
+        Timetables Uploaded: {{ uploaded_count }}
+    </div>
+    <div class="px-3 py-2 rounded-lg bg-amber-50 text-amber-800 text-xs font-semibold">
+        Pending: {{ pending_count }}
+    </div>
+</div>
+
+<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 pt-4 pb-2 border-b border-slate-100">
+        <h2 class="text-sm font-semibold text-slate-700">Lecturers</h2>
+        <div class="w-full sm:w-64">
+            <div class="relative">
+                <input id="staff-search" type="text" placeholder="Search by name, ID"
+                    class="w-full pr-9 pl-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                <button type="button" onclick="applyStaffSearch()"
+                    class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-indigo-600">
+                    <i class="fas fa-search text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <table class="w-full text-left text-sm" id="staff-table">
+        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+            <tr>
+                <th class="px-6 py-3">Staff ID</th>
+                <th class="px-6 py-3">Lecturer Name</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">Timetable</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50" id="staff-table-body">
+            {% for row in lecturers %}
+            <tr>
+                <td class="px-6 py-3 text-slate-700 text-xs font-mono">
+                    {{ row.staff_id or "-" }}
+                </td>
+                <td class="px-6 py-3 text-slate-800 font-medium">
+                    {{ row.name }}
+                </td>
+                <td class="px-6 py-3">
+                    {% if row.has_timetable %}
+                    <span
+                        class="inline-flex items-center px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold uppercase">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                        Uploaded
+                    </span>
+                    {% else %}
+                    <span
+                        class="inline-flex items-center px-2 py-1 rounded-full bg-amber-50 text-amber-700 text-[11px] font-semibold uppercase">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5"></span>
+                        Pending
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-3">
+                    {% if row.has_timetable and row.timetable_image_url %}
+                    <button type="button" class="text-xs font-semibold text-violet-600 hover:text-violet-800 underline"
+                        onclick="openTimetableModal('{{ row.timetable_image_url }}', '{{ row.name|escape }}')">
+                        View
+                    </button>
+                    {% elif row.has_timetable %}
+                    <span class="text-xs text-amber-600">File saved, but URL missing</span>
+                    {% else %}
+                    <span class="text-xs text-slate-400">No file</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Timetable Modal -->
+<div id="timetable-modal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <div>
+                <h3 id="timetable-modal-title" class="text-sm font-semibold text-slate-900">Faculty Timetable</h3>
+                <p class="text-xs text-slate-500">Preview of uploaded timetable</p>
+            </div>
+            <button type="button" onclick="closeTimetableModal()"
+                class="text-slate-400 hover:text-slate-600 text-lg font-bold">
+                &times;
+            </button>
+        </div>
+        <div class="p-4 overflow-auto">
+            <img id="timetable-modal-image" src="" alt="Timetable"
+                class="max-h-[70vh] w-full object-contain rounded-lg border border-slate-100" />
+        </div>
+    </div>
+</div>
+
+<script>
+    function openTimetableModal(src, name) {
+        const modal = document.getElementById('timetable-modal');
+        const img = document.getElementById('timetable-modal-image');
+        const title = document.getElementById('timetable-modal-title');
+        img.src = src;
+        title.textContent = 'Timetable - ' + name;
+        modal.classList.remove('hidden');
+    }
+
+    function closeTimetableModal() {
+        const modal = document.getElementById('timetable-modal');
+        const img = document.getElementById('timetable-modal-image');
+        img.src = '';
+        modal.classList.add('hidden');
+    }
+
+    function applyStaffSearch() {
+        const input = document.getElementById('staff-search');
+        const filter = (input.value || '').toLowerCase().trim();
+        const tbody = document.getElementById('staff-table-body');
+        if (!tbody) return;
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const cells = rows[i].getElementsByTagName('td');
+            if (cells.length < 2) continue;
+            const staffId = (cells[0].innerText || '').toLowerCase();
+            const name = (cells[1].innerText || '').toLowerCase();
+
+            const text = staffId + ' ' + name;
+            rows[i].style.display = !filter || text.includes(filter) ? '' : 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('staff-search');
+        if (input) {
+            input.addEventListener('keyup', function (e) {
+                if (e.key === 'Enter') {
+                    applyStaffSearch();
+                } else {
+                    applyStaffSearch(); // real-time filtering
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

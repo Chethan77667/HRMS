@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Apply Leave - HRMS{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+        <div class="bg-indigo-700 p-6 text-white text-center">
+            <h2 class="text-2xl font-bold">{% if mode == 'time' %}Apply Time-Based Leave (Current Day){% else %}Apply
+                for Leave (Multi-Day){% endif %}</h2>
+            <p class="text-indigo-200 mt-1">Submit your request for administrative review</p>
+        </div>
+
+        <form action="{{ url_for('apply_leave', mode=mode) }}" method="POST" class="p-8 space-y-6" id="leaveForm">
+            <input type="hidden" name="mode" value="{{ mode }}">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Leave Type</label>
+                    <select name="type" required id="leaveType"
+                        class="block w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 transition-all">
+                        <option value="Casual Leave">Casual Leave</option>
+                        <option value="Medical Leave">Medical Leave</option>
+                        <option value="Earned Leave">Earned Leave</option>
+                        {% if mode == 'time' %}
+                        <option value="Short Leave" selected>Short Leave</option>
+                        {% else %}
+                        <option value="Short Leave">Short Leave</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Balance Remaining</label>
+                    <div id="balanceDisplay" class="px-4 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold">12 Days
+                    </div>
+                </div>
+            </div>
+
+            {% if mode == 'time' %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">From Time</label>
+                    <input type="time" name="time_from" id="timeFrom" required
+                        class="block w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">To Time</label>
+                    <input type="time" name="time_to" id="timeTo" required
+                        class="block w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 transition-all">
+                </div>
+            </div>
+            {% else %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">From Date</label>
+                    <input type="date" name="from_date" id="fromDate" required
+                        class="block w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 transition-all">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">To Date</label>
+                    <input type="date" name="to_date" id="toDate" required
+                        class="block w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 transition-all">
+                </div>
+            </div>
+            {% endif %}
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Reason for Leave</label>
+                <textarea name="reason" rows="4" required
+                    class="block w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-slate-50 transition-all"
+                    placeholder="Explain the reason for your leave request..."></textarea>
+            </div>
+
+            <div class="flex items-center space-x-4 pt-4">
+                <button type="submit" id="submitBtn"
+                    class="flex-1 bg-indigo-700 text-white py-3 px-6 rounded-xl font-bold hover:bg-indigo-800 shadow-lg shadow-indigo-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    Submit Application
+                </button>
+                <a href="{{ url_for('lecturer_dashboard') }}"
+                    class="px-6 py-3 text-slate-500 font-semibold hover:text-slate-800">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mode = "{{ mode }}";
+        const maxBalance = 12; // Static balance for prototype
+
+        if (mode === 'full') {
+            const fromDateInput = document.getElementById('fromDate');
+            const toDateInput = document.getElementById('toDate');
+            const balanceDisplay = document.getElementById('balanceDisplay');
+            const submitBtn = document.getElementById('submitBtn');
+
+            function calculateDays() {
+                const fromVal = fromDateInput.value;
+                const toVal = toDateInput.value;
+
+                if (fromVal && toVal) {
+                    const diffTime = Math.abs(new Date(toVal) - new Date(fromVal));
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+                    if (new Date(fromVal) > new Date(toVal)) {
+                        balanceDisplay.innerHTML = `<span class="text-rose-600">Invalid Date Range</span>`;
+                        submitBtn.disabled = true;
+                        return;
+                    }
+
+                    if (diffDays > maxBalance) {
+                        balanceDisplay.innerHTML = `<span class="text-rose-600">Exceeds Balance! (${diffDays} Days Selected)</span>`;
+                        submitBtn.disabled = true;
+                    } else {
+                        const remaining = maxBalance - diffDays;
+                        balanceDisplay.innerHTML = `<span class="text-emerald-600">${remaining} Days</span> (After ${diffDays} day request)`;
+                        submitBtn.disabled = false;
+                    }
+                } else {
+                    balanceDisplay.innerText = `${maxBalance} Days`;
+                    submitBtn.disabled = false;
+                }
+            }
+
+            fromDateInput.addEventListener('change', calculateDays);
+            toDateInput.addEventListener('change', calculateDays);
+
+            // Trigger calculation on form submission attempt to be safe
+            document.getElementById('leaveForm').addEventListener('submit', function (e) {
+                if (fromDateInput.value && toDateInput.value) {
+                    if (new Date(fromDateInput.value) > new Date(toDateInput.value)) {
+                        e.preventDefault();
+                        alert("From Date cannot be after To Date.");
+                    }
+                }
+            });
+        } else {
+            // Time mode
+            const timeFromInput = document.getElementById('timeFrom');
+            const timeToInput = document.getElementById('timeTo');
+            const balanceDisplay = document.getElementById('balanceDisplay');
+            const submitBtn = document.getElementById('submitBtn');
+
+            balanceDisplay.innerHTML = `<span class="text-emerald-600">${maxBalance} Days</span> (Time-based uses fractions)`;
+
+            function validateTime() {
+                const fromVal = timeFromInput.value;
+                const toVal = timeToInput.value;
+
+                if (fromVal && toVal) {
+                    if (fromVal >= toVal) {
+                        balanceDisplay.innerHTML = `<span class="text-rose-600">Invalid Time Range</span>`;
+                        submitBtn.disabled = true;
+                    } else {
+                        balanceDisplay.innerHTML = `<span class="text-emerald-600">${maxBalance} Days</span> (Time-based uses fractions)`;
+                        submitBtn.disabled = false;
+                    }
+                } else {
+                    balanceDisplay.innerHTML = `<span class="text-emerald-600">${maxBalance} Days</span> (Time-based uses fractions)`;
+                    submitBtn.disabled = false;
+                }
+            }
+
+            if (timeFromInput && timeToInput) {
+                timeFromInput.addEventListener('change', validateTime);
+                timeToInput.addEventListener('change', validateTime);
+            }
+
+            // Form submission validation for time mode
+            document.getElementById('leaveForm').addEventListener('submit', function (e) {
+                if (timeFromInput && timeToInput && timeFromInput.value && timeToInput.value) {
+                    if (timeFromInput.value >= timeToInput.value) {
+                        e.preventDefault();
+                        alert("From Time must be before To Time.");
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

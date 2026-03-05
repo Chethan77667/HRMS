@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Lecturer Dashboard - HRMS{% endblock %}
+
+{% block content %}
+<div class="mb-8 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div
+        class="w-full bg-white border-b border-slate-200 px-4 py-4 sm:px-8 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-5">
+        <div class="flex items-center gap-3 sm:gap-5">
+            <div class="flex-shrink-0">
+                <img src="{{ url_for('static', filename='img/logo-removebg-preview.png') }}" alt="College Logo"
+                    class="h-16 w-16 sm:h-20 sm:w-20 object-contain">
+            </div>
+            <div class="text-center sm:text-left">
+                <h1
+                    class="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 leading-snug underline decoration-slate-800 decoration-2 underline-offset-4">
+                    Dr. B. B. Hegde First Grade College, Kundapura
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    A Unit of Coondapur Education Society (R)
+                </p>
+            </div>
+        </div>
+        <div class="w-full sm:w-auto flex justify-center sm:justify-end">
+            <a href="{{ url_for('logout') }}"
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-sm transition-colors duration-150">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
+    <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800">Hello, {{ current_user.name }}</h1>
+        <p class="text-slate-500 mt-1">Welcome to your personal HR portal.</p>
+    </div>
+    <div class="mt-4 md:mt-0 flex flex-wrap gap-3">
+        <a href="{{ url_for('lecturer_timetable') }}"
+            class="bg-violet-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-violet-700 shadow-lg shadow-violet-100 transition-all flex items-center">
+            <i class="fas fa-table mr-2"></i> My Timetable
+        </a>
+        {% if has_timetable %}
+        <a href="{{ url_for('edit_lecturer_timetable') }}"
+            class="bg-sky-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-sky-700 shadow-lg shadow-sky-100 transition-all flex items-center">
+            <i class="fas fa-pen mr-2"></i> Edit Timetable
+        </a>
+        {% endif %}
+        <div class="relative group">
+            <button
+                class="bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-800 shadow-lg shadow-indigo-100 transition-all flex items-center">
+                <i class="fas fa-plus-circle mr-2"></i> Apply for Leave <i
+                    class="fas fa-chevron-down ml-2 text-sm opacity-80"></i>
+            </button>
+            <div
+                class="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 overflow-hidden">
+                <a href="{{ url_for('apply_leave', mode='full') }}"
+                    class="block px-4 py-3 text-sm text-slate-700 hover:bg-indigo-50 font-semibold border-b border-slate-50 transition-colors">
+                    <i class="fas fa-calendar-day mr-2 text-indigo-500"></i> Multi-Day / Full Leave
+                </a>
+                <a href="{{ url_for('apply_leave', mode='time') }}"
+                    class="block px-4 py-3 text-sm text-slate-700 hover:bg-indigo-50 font-semibold transition-colors">
+                    <i class="fas fa-clock mr-2 text-indigo-500"></i> Current Day Leave
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main Column -->
+    <div class="lg:col-span-2 space-y-8">
+        <!-- Leave Status -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-6 border-b border-slate-50">
+                <h3 class="font-bold text-slate-800">My Recent Leave History</h3>
+            </div>
+            <div class="p-6">
+                {% if leaves %}
+                <div class="space-y-4">
+                    {% for leave in leaves %}
+                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div class="flex items-center space-x-4">
+                            <div
+                                class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-600 shadow-sm">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-700">{{ leave.type }}</p>
+                                <p class="text-xs text-slate-500">{{ leave.from_date }} to {{ leave.to_date }}</p>
+                                <p class="text-[11px] text-slate-400 mt-1 truncate max-w-xs">{{ leave.reason }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="status-badge-{{ leave._id|string }}" class="px-3 py-1 rounded-full text-[11px] font-bold uppercase 
+                                {% if leave.status == 'Approved' %}bg-green-100 text-green-700
+                                {% elif leave.status == 'Rejected' %}bg-red-100 text-red-700
+                                {% elif leave.status == 'Cancelled' %}bg-slate-100 text-slate-600
+                                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {{ leave.status }}
+                            </span>
+                            {% if leave.status == 'Pending' %}
+                            <div id="cancel-form-{{ leave._id|string }}">
+                                <button type="button" onclick="cancelLeave('{{ leave._id|string }}')"
+                                    class="text-[11px] font-semibold text-rose-600 hover:text-rose-800 px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100">
+                                    Cancel
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-10">
+                    <div class="mb-4 text-slate-300 text-5xl">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <p class="text-slate-500">No recent leave history found.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- My Timetable Quick Link -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800">My Timetable</h3>
+                <a href="{{ url_for('lecturer_timetable') }}"
+                    class="text-sm font-semibold text-violet-600 hover:text-violet-800 flex items-center">
+                    View full timetable <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-8">
+        <!-- Profile Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="h-20 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+            <div class="px-6 pb-6 -mt-10 text-center">
+                <div class="inline-block p-1 bg-white rounded-full mb-4">
+                    <img src="https://ui-avatars.com/api/?name={{ current_user.name }}&background=6366f1&color=fff"
+                        class="w-20 h-20 rounded-full border-4 border-white shadow-xl">
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">{{ current_user.name }}</h3>
+                <p class="text-sm text-slate-500">Assistant Professor</p>
+
+                <div class="mt-6 flex justify-around border-t pt-6">
+                    <div>
+                        <p id="leaves-left-count" class="text-lg font-bold text-slate-800">{{ leaves_left }}</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Leaves Left</p>
+                    </div>
+                    <div class="border-x px-6">
+                        <p class="text-lg font-bold text-slate-800">98%</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Attendance</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Salary Quick View -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl shadow-xl p-6 text-white">
+            <div class="flex items-center justify-between mb-6">
+                <i class="fas fa-wallet text-indigo-400 text-xl"></i>
+                <span class="text-[10px] font-bold bg-white/10 px-2 py-1 rounded-lg">LAST PAYSLIP</span>
+            </div>
+            <p class="text-sm text-slate-400 mb-1">January 2026 Earnings</p>
+            <h2 class="text-3xl font-extrabold">₹ 48,500.00</h2>
+            <div class="mt-6 pt-6 border-t border-white/10">
+                <button
+                    class="w-full bg-white/10 hover:bg-white/20 py-2 rounded-lg text-sm font-bold transition-colors">
+                    <i class="fas fa-download mr-2"></i> Download Slip
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    async function cancelLeave(id) {
+        if (!confirm('Are you sure you want to cancel this leave request?')) return;
+        try {
+            const res = await fetch(`/lecturer/leave/api/${id}/cancel`, { method: 'POST' });
+            if (res.ok) {
+                const badge = document.getElementById('status-badge-' + id);
+                if (badge) {
+                    badge.className = 'px-3 py-1 rounded-full text-[11px] font-bold uppercase bg-slate-100 text-slate-600';
+                    badge.innerText = 'Cancelled';
+                }
+                const btnForm = document.getElementById('cancel-form-' + id);
+                if (btnForm) btnForm.remove();
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const socket = io();
+        const currentUserId = "{{ current_user.id }}";
+
+        socket.on('leave_status_update', function (data) {
+            if (data.lecturer_id === currentUserId) {
+                const badge = document.getElementById('status-badge-' + data.id);
+                if (badge) {
+                    badge.innerText = data.status;
+                    badge.className = 'px-3 py-1 rounded-full text-[11px] font-bold uppercase';
+                    if (data.status === 'Approved') {
+                        badge.classList.add('bg-green-100', 'text-green-700');
+                    } else if (data.status === 'Rejected') {
+                        badge.classList.add('bg-red-100', 'text-red-700');
+                    }
+
+                    const btnForm = document.getElementById('cancel-form-' + data.id);
+                    if (btnForm) btnForm.remove();
+                }
+
+                if (data.leaves_left !== undefined) {
+                    const leavesCount = document.getElementById('leaves-left-count');
+                    if (leavesCount) {
+                        leavesCount.innerText = data.leaves_left;
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

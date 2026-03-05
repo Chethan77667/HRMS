@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if mode == "edit" %}Edit Lecturer{% else %}Add New Lecturer{% endif %} - Admin
+{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800">
+            {% if mode == "edit" %}Edit Lecturer{% else %}Add New Lecturer{% endif %}
+        </h1>
+        <p class="text-slate-500 mt-1 text-sm sm:text-base">
+            Enter lecturer details like <span class="font-semibold">BBHCF001</span>, department, and category.
+        </p>
+    </div>
+    <a href="{{ url_for('manage_staff') }}"
+        class="inline-flex items-center px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-sm font-semibold transition-colors">
+        <i class="fas fa-arrow-left mr-2"></i> Back
+    </a>
+</div>
+
+{% if error %}
+<div class="mb-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 px-4 py-3 text-sm">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <form method="POST" class="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Staff ID <span class="text-rose-600">*</span></label>
+            <input name="staff_id" value="{{ form.staff_id }}" placeholder="BBHCF001" required
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Full Name <span class="text-rose-600">*</span></label>
+            <input name="name" value="{{ form.name }}" placeholder="Prof. K. Umesh Shetty" required
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Designation <span class="text-rose-600">*</span></label>
+            <input name="designation" value="{{ form.designation }}" placeholder="Professor & Principal" required
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Department <span class="text-rose-600">*</span></label>
+            <input name="department" value="{{ form.department }}" placeholder="Administration" required
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Category <span class="text-rose-600">*</span></label>
+            <select name="category" required
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                {% set cat = form.category %}
+                <option value="Teaching Faculty" {% if cat == "Teaching Faculty" %}selected{% endif %}>Teaching Faculty</option>
+                <option value="Non Teaching Faculty" {% if cat == "Non Teaching Faculty" %}selected{% endif %}>Non Teaching Faculty</option>
+                <option value="Administration" {% if cat == "Administration" %}selected{% endif %}>Administration</option>
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Email</label>
+            <input name="email" value="{{ form.email }}" placeholder="umesh@college.edu" type="email"
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">Username <span class="text-rose-600">*</span></label>
+            <input name="username" id="username_input" value="{{ form.username }}" placeholder="Auto-filled from Staff ID" required
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <p class="mt-1 text-xs text-slate-500">
+                <i class="fas fa-info-circle mr-1"></i>Username will be set to Staff ID (lowercase) if left empty
+            </p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-1">
+                Password {% if mode != "edit" %}<span class="text-rose-600">*</span>{% endif %}
+            </label>
+            <input name="password" type="password" {% if mode != "edit" %}required{% endif %}
+                placeholder="{% if mode == 'edit' %}Leave blank to keep same{% else %}Default: 123456{% endif %}"
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <p class="mt-1 text-xs text-slate-500">
+                <i class="fas fa-info-circle mr-1"></i>Default password is <span class="font-mono">123456</span> if left empty
+            </p>
+        </div>
+
+        <div class="md:col-span-2 flex flex-col sm:flex-row gap-3 justify-end pt-2">
+            <a href="{{ url_for('manage_staff') }}"
+                class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold transition-colors">
+                Cancel
+            </a>
+            <button type="submit"
+                class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold shadow-lg shadow-indigo-100 transition-colors">
+                <i class="fas fa-save mr-2"></i>
+                {% if mode == "edit" %}Update Lecturer{% else %}Create Lecturer{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Auto-fill username from Staff ID
+document.addEventListener('DOMContentLoaded', function() {
+    const staffIdInput = document.querySelector('input[name="staff_id"]');
+    const usernameInput = document.getElementById('username_input');
+    
+    if (staffIdInput && usernameInput) {
+        staffIdInput.addEventListener('input', function() {
+            if (!usernameInput.value || usernameInput.value === '{{ form.username }}') {
+                usernameInput.value = this.value.toLowerCase();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

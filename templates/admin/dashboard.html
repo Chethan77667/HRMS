@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - HRMS{% endblock %}
+
+{% block content %}
+<div class="mb-8 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div
+        class="w-full bg-white border-b border-slate-200 px-4 py-4 sm:px-8 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-5">
+        <div class="flex flex-col items-center sm:flex-row sm:items-center sm:gap-5">
+            <div class="flex-shrink-0 mb-2 sm:mb-0">
+                <img src="{{ url_for('static', filename='img/logo-removebg-preview.png') }}" alt="College Logo"
+                    class="h-16 w-16 sm:h-20 sm:w-20 object-contain mx-auto">
+            </div>
+            <div class="text-center sm:text-left">
+                <h1
+                    class="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 leading-snug underline decoration-slate-800 decoration-2 underline-offset-4">
+                    Dr. B. B. Hegde First Grade College, Kundapura
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    A Unit of Coondapur Education Society (R)
+                </p>
+            </div>
+        </div>
+        <div class="w-full sm:w-auto flex justify-center sm:justify-end">
+            <a href="{{ url_for('logout') }}"
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-sm transition-colors duration-150">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="mb-8 text-center">
+    <h2 class="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-wide uppercase drop-shadow-sm">
+        HRMS
+    </h2>
+    <p class="text-base sm:text-lg text-slate-500 font-medium mt-1">
+        Human Resource Management System
+    </p>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+        <div class="p-4 bg-blue-50 text-blue-600 rounded-xl">
+            <i class="fas fa-users-cog text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 uppercase">Total Lecturers</p>
+            <p class="text-2xl font-bold text-slate-800">{{ stats.staff_count }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+        <div class="p-4 bg-amber-50 text-amber-600 rounded-xl">
+            <i class="fas fa-calendar-alt text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 uppercase">Pending Leaves</p>
+            <p class="text-2xl font-bold text-slate-800">{{ stats.pending_leaves }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center space-x-4">
+        <div class="p-4 bg-green-50 text-green-600 rounded-xl">
+            <i class="fas fa-clock text-2xl"></i>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 uppercase">Timetable Slots</p>
+            <p class="text-2xl font-bold text-slate-800">{{ stats.timetable_entries }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+    <a id="action-add-staff" href="{{ url_for('manage_staff') }}"
+        class="p-4 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition-colors group">
+        <i class="fas fa-user-plus text-indigo-600 mb-2"></i>
+        <h3 class="font-bold text-indigo-900">Add Lecturer</h3>
+        <p class="text-xs text-indigo-700">Onboard new lecturers</p>
+    </a>
+    <a id="action-manage-salary" href="#"
+        class="p-4 bg-emerald-50 border border-emerald-100 rounded-xl hover:bg-emerald-100 transition-colors group">
+        <i class="fas fa-money-check-alt text-emerald-600 mb-2"></i>
+        <h3 class="font-bold text-emerald-900">Manage Salary</h3>
+        <p class="text-xs text-emerald-700">Approve disbursements</p>
+    </a>
+    <a href="{{ url_for('admin_leaves') }}"
+        class="p-4 bg-rose-50 border border-rose-100 rounded-xl hover:bg-rose-100 transition-colors group">
+        <i class="fas fa-calendar-check text-rose-600 mb-2"></i>
+        <h3 class="font-bold text-rose-900">Leave Portal</h3>
+        <p class="text-xs text-rose-700">Review requests</p>
+    </a>
+    <a id="action-timetabling" href="{{ url_for('admin_timetables') }}"
+        class="p-4 bg-violet-50 border border-violet-100 rounded-xl hover:bg-violet-100 transition-colors group">
+        <i class="fas fa-table text-violet-600 mb-2"></i>
+        <h3 class="font-bold text-violet-900">Timetabling</h3>
+        <p class="text-xs text-violet-700">Schedule classes</p>
+    </a>
+
+    <a id="action-generate-report" href="#"
+        class="p-4 bg-sky-50 border border-sky-100 rounded-xl hover:bg-sky-100 transition-colors group">
+        <i class="fas fa-file-export text-sky-600 mb-2"></i>
+        <h3 class="font-bold text-sky-900">Generate Report</h3>
+        <p class="text-xs text-sky-700">Export summary reports</p>
+    </a>
+
+    <a id="action-view-all-staff-records" href="{{ url_for('manage_staff') }}"
+        class="p-4 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition-colors group">
+        <i class="fas fa-clipboard-list text-amber-600 mb-2"></i>
+        <h3 class="font-bold text-amber-900">View All Staff Records</h3>
+        <p class="text-xs text-amber-700">Browse lecturer details</p>
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Recent Activity -->
+    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-6 border-b border-slate-50 flex justify-between items-center gap-3">
+            <h3 class="font-bold text-slate-800">Recent Leave Requests</h3>
+            <div class="flex items-center gap-2">
+                <div class="hidden sm:block">
+                    <div class="relative">
+                        <input id="recent-leaves-search" type="text" placeholder="Search"
+                            class="w-40 px-3 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                        <button type="button" onclick="applyRecentLeavesSearch()"
+                            class="absolute inset-y-0 right-0 px-2 flex items-center text-slate-400 hover:text-indigo-600">
+                            <i class="fas fa-search text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                <a href="{{ url_for('admin_leaves') }}"
+                    class="text-xs font-bold text-indigo-600 hover:underline px-3 py-1 bg-indigo-50 rounded-lg">View
+                    All</a>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">Lecturer</th>
+                        <th class="px-6 py-4">Type</th>
+                        <th class="px-6 py-4">Dates</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50" id="recent-leaves-body">
+                    {% if recent_leaves %}
+                    {% for leave in recent_leaves %}
+                    <tr>
+                        <td class="px-6 py-4 font-medium text-slate-700 underline">{{ leave.lecturer_name }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">{{ leave.type }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-500">{{ leave.from_date }} - {{ leave.to_date }}</td>
+                        <td class="px-6 py-4">
+                            <span
+                                class="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-700">
+                                {{ leave.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="reviewLeave('{{ leave._id|string }}', 'Approved')"
+                                    class="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 transition-colors">
+                                    Approve
+                                </button>
+                                <button type="button" onclick="reviewLeave('{{ leave._id|string }}', 'Rejected')"
+                                    class="text-xs bg-rose-600 text-white px-3 py-1 rounded hover:bg-rose-700 transition-colors">
+                                    Reject
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td class="px-6 py-6 text-sm text-slate-500" colspan="5">No pending leave requests.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- AI Insights Card (Future Concept) -->
+    <div class="bg-indigo-900 rounded-2xl shadow-xl p-6 text-white relative overflow-hidden">
+        <div class="relative z-10">
+            <div class="flex items-center space-x-2 mb-4">
+                <span class="p-2 bg-white/20 rounded-lg"><i class="fas fa-brain"></i></span>
+                <h3 class="font-bold uppercase text-xs tracking-widest text-indigo-300">AI Insights (Experimental)</h3>
+            </div>
+            <p class="text-lg font-semibold mb-1 leading-tight">Leave Prediction Model</p>
+            <p class="text-xs text-indigo-300 mb-4 flex items-center gap-1">
+                <i class="fas fa-bolt text-amber-400"></i> Powered by Gemini AI
+            </p>
+            <div class="bg-white/10 p-4 rounded-xl border border-white/10 mb-6">
+                <p class="text-sm text-indigo-100 mb-2">Predicted Leave Volume for March:</p>
+                <div class="flex items-end space-x-1 h-12">
+                    <div class="w-1/4 bg-indigo-400 rounded-t h-[40%]"></div>
+                    <div class="w-1/4 bg-indigo-300 rounded-t h-[60%]"></div>
+                    <div class="w-1/4 bg-white rounded-t h-[90%] shake"></div>
+                    <div class="w-1/4 bg-indigo-500 rounded-t h-[50%]"></div>
+                </div>
+            </div>
+            <p class="text-xs text-indigo-300 italic">"Higher probability of leave requests detected for next week due
+                to semester breaks."</p>
+        </div>
+        <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-indigo-600 rounded-full blur-3xl opacity-50"></div>
+    </div>
+</div>
+
+<script>
+    let recentLeavesCache = [];
+
+    function renderRecentLeaves(list) {
+        const tbody = document.getElementById('recent-leaves-body');
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td class="px-6 py-6 text-sm text-slate-500" colspan="5">No pending leave requests.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(item => `
+            <tr>
+                <td class="px-6 py-4 font-medium text-slate-700 underline">${item.lecturer_name}</td>
+                <td class="px-6 py-4 text-sm text-slate-500">${item.type}</td>
+                <td class="px-6 py-4 text-sm text-slate-500">${item.from_date} - ${item.to_date}</td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase bg-amber-100 text-amber-700">
+                        ${item.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="reviewLeave('${item.id}', 'Approved')"
+                            class="text-xs bg-emerald-600 text-white px-3 py-1 rounded hover:bg-emerald-700 transition-colors">
+                            Approve
+                        </button>
+                        <button type="button" onclick="reviewLeave('${item.id}', 'Rejected')"
+                            class="text-xs bg-rose-600 text-white px-3 py-1 rounded hover:bg-rose-700 transition-colors">
+                            Reject
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function reviewLeave(id, status) {
+        try {
+            const res = await fetch(`/admin/leave/api/${id}/${status}`, { method: 'POST' });
+            if (res.ok) {
+                recentLeavesCache = recentLeavesCache.filter(item => item.id !== id);
+                applyRecentLeavesSearch();
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    function applyRecentLeavesSearch() {
+        const input = document.getElementById('recent-leaves-search');
+        if (!input) return;
+        const q = (input.value || '').toLowerCase().trim();
+
+        const source = recentLeavesCache;
+        const filtered = !q ? source : source.filter(item => {
+            return (
+                item.lecturer_name.toLowerCase().includes(q) ||
+                item.type.toLowerCase().includes(q)
+            );
+        });
+        renderRecentLeaves(filtered);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        recentLeavesCache = JSON.parse('{{ recent_leaves_serialized|default([])|tojson|safe }}');
+
+        const socket = io();
+
+        socket.on('new_leave_request', function (leave) {
+            recentLeavesCache.unshift(leave);
+            if (recentLeavesCache.length > 5) {
+                recentLeavesCache.pop(); // Keep only 5 pending leaves
+            }
+            applyRecentLeavesSearch();
+        });
+
+        socket.on('leave_status_update', function (data) {
+            recentLeavesCache = recentLeavesCache.filter(item => item.id !== data.id);
+            applyRecentLeavesSearch();
+        });
+
+        socket.on('leave_cancelled', function (data) {
+            recentLeavesCache = recentLeavesCache.filter(item => item.id !== data.id);
+            applyRecentLeavesSearch();
+        });
+    });
+</script>
+{% endblock %}

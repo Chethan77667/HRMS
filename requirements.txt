@@ -1,0 +1,14 @@
+flask
+pymongo
+flask-login
+flask-bcrypt
+python-dotenv
+pandas
+openpyxl
+fastai
+torch
+PyMuPDF
+Pillow
+pytesseract
+google-generativeai
+flask-socketio
