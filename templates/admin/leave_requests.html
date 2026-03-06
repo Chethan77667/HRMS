@@ -21,51 +21,128 @@
         </div>
     </div>
 
-    <form method="get" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-        <div class="w-full sm:w-64">
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Search</label>
-            <div class="relative">
-                <input type="text" name="q" value="{{ q or '' }}" placeholder="Name, type, reason, status"
-                    class="w-full pr-10 pl-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+    <!-- TABS -->
+    <div class="flex gap-4 border-b border-slate-200">
+        <button type="button" id="tab-allocations"
+            class="px-4 py-2 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600"
+            onclick="switchTab('allocations')">Manage Allocations</button>
+        <button type="button" id="tab-review"
+            class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            onclick="switchTab('review')">Review Leaves</button>
+    </div>
+
+    <!-- Review view controls -->
+    <div id="review-controls" class="hidden">
+        <form method="get" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div class="w-full sm:w-64">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Search Requests</label>
+                <div class="relative">
+                    <input type="text" name="q" value="{{ q or '' }}" placeholder="Name, type, reason, status"
+                        class="w-full pr-10 pl-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    <button type="submit"
+                        class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-indigo-600">
+                        <i class="fas fa-search text-sm"></i>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Month</label>
+                <input type="month" name="month" value="{{ month or '' }}"
+                    class="w-full sm:w-40 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+            </div>
+            <div class="flex gap-2">
                 <button type="submit"
-                    class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-indigo-600">
-                    <i class="fas fa-search text-sm"></i>
+                    class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">
+                    Filter
                 </button>
+                <a href="{{ url_for('admin_leaves') }}"
+                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold shadow-sm">
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Allocations view controls -->
+    <div id="allocations-controls" class="block">
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            <div class="w-full sm:w-64">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Search Staff</label>
+                <div class="relative">
+                    <input type="text" id="allocSearch" onkeyup="filterAllocations()" placeholder="Name or ID"
+                        class="w-full pr-10 pl-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    <div class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400">
+                        <i class="fas fa-search text-sm"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Month</label>
-            <input type="month" name="month" value="{{ month or '' }}"
-                class="w-full sm:w-40 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
-        </div>
-        <div class="flex gap-2">
-            <button type="submit"
-                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">
-                Filter
-            </button>
-            <a href="{{ url_for('admin_leaves') }}"
-                class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold shadow-sm">
-                Clear
-            </a>
-        </div>
-    </form>
+    </div>
 </div>
 
-<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full text-left">
-            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                <tr>
-                    <th class="px-6 py-4">Lecturer</th>
-                    <th class="px-6 py-4">Type</th>
-                    <th class="px-6 py-4">Duration</th>
-                    <th class="px-6 py-4">Reason</th>
-                    <th class="px-6 py-4">Status</th>
-                    <th class="px-6 py-4">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-50">
-                {% if leaves %}
+<div id="allocations-view" class="block">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left" id="allocTable">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">Lecturer ID</th>
+                        <th class="px-6 py-4">Name</th>
+                        <th class="px-6 py-4">Leaves per Month</th>
+                        <th class="px-6 py-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    {% if lecturers %}
+                    {% for lecturer in lecturers %}
+                    <tr class="alloc-row hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-slate-700 alloc-id">{{ lecturer.staff_id }}</td>
+                        <td class="px-6 py-4 text-sm alloc-name font-medium">{{ lecturer.name }}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <input type="number" step="0.5" id="alloc-{{ lecturer._id }}"
+                                value="{% if lecturer.leaves_per_month %}{{ lecturer.leaves_per_month }}{% else %}20{% endif %}"
+                                class="w-24 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                        </td>
+                        <td class="px-6 py-4">
+                            <button onclick="saveAllocation('{{ lecturer._id }}')"
+                                class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors">
+                                Save
+                            </button>
+                            <span id="alloc-status-{{ lecturer._id }}"
+                                class="ml-3 text-sm text-emerald-600 font-bold hidden opacity-0 transition-opacity duration-300">Saved!</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td class="px-6 py-6 text-sm text-slate-500" colspan="4">
+                            No lecturers found.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="review-view" class="hidden">
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">Lecturer</th>
+                        <th class="px-6 py-4">Type</th>
+                        <th class="px-6 py-4">Duration</th>
+                        <th class="px-6 py-4">Reason</th>
+                        <th class="px-6 py-4">Status</th>
+                        <th class="px-6 py-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    {% if leaves %}
                     {% for leave in leaves %}
                     <tr>
                         <td class="px-6 py-4 font-bold text-slate-700">{{ leave.lecturer_name }}</td>
@@ -105,15 +182,16 @@
                         </td>
                     </tr>
                     {% endfor %}
-                {% else %}
+                    {% else %}
                     <tr>
                         <td class="px-6 py-6 text-sm text-slate-500" colspan="6">
                             No leave records found for the selected filters.
                         </td>
                     </tr>
-                {% endif %}
-            </tbody>
-        </table>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 <!-- Delete All Leaves Confirmation Modal (with verification code) -->
@@ -132,8 +210,7 @@
                 <p class="text-xs font-semibold text-slate-500 mb-2">
                     Type the following code to confirm:
                 </p>
-                <div
-                    class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-slate-900 text-white font-mono text-sm tracking-[0.35em]"
+                <div class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-slate-900 text-white font-mono text-sm tracking-[0.35em]"
                     id="deleteAllLeavesCodeDisplay">
                     -----
                 </div>
@@ -206,5 +283,85 @@
             input.focus();
         }
     });
+
+    function switchTab(tab) {
+        if (tab === 'allocations') {
+            document.getElementById('allocations-view').classList.remove('hidden');
+            document.getElementById('allocations-controls').classList.remove('hidden');
+            document.getElementById('review-view').classList.add('hidden');
+            document.getElementById('review-controls').classList.add('hidden');
+            document.getElementById('tab-allocations').className = 'px-4 py-2 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600';
+            document.getElementById('tab-review').className = 'px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300';
+        } else {
+            document.getElementById('allocations-view').classList.add('hidden');
+            document.getElementById('allocations-controls').classList.add('hidden');
+            document.getElementById('review-view').classList.remove('hidden');
+            document.getElementById('review-controls').classList.remove('hidden');
+            document.getElementById('tab-allocations').className = 'px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300';
+            document.getElementById('tab-review').className = 'px-4 py-2 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600';
+        }
+    }
+
+    function saveAllocation(id) {
+        const input = document.getElementById('alloc-' + id);
+        const status = document.getElementById('alloc-status-' + id);
+        const val = input.value;
+        const btn = input.parentElement.nextElementSibling.querySelector('button');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch('/admin/leaves/api/set_allocation/' + id, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ leaves_per_month: val })
+        })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = 'Save';
+                if (data.success) {
+                    status.classList.remove('hidden');
+                    // Trigger reflow to restart animation
+                    void status.offsetWidth;
+                    status.classList.add('opacity-100');
+
+                    setTimeout(() => {
+                        status.classList.remove('opacity-100');
+                        setTimeout(() => status.classList.add('hidden'), 300);
+                    }, 2000);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = 'Save';
+                alert('Failed to save. Please try again.');
+            });
+    }
+
+    function filterAllocations() {
+        const term = document.getElementById('allocSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('.alloc-row');
+        rows.forEach(row => {
+            const idText = row.querySelector('.alloc-id').textContent.toLowerCase();
+            const nameText = row.querySelector('.alloc-name').textContent.toLowerCase();
+            if (idText.includes(term) || nameText.includes(term)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Auto-switch to review tab if query params are present
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('q') || urlParams.has('month')) {
+            switchTab('review');
+        }
+    });
+
 </script>
 {% endblock %}

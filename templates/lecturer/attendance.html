@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}My Attendance - HRMS{% endblock %}
+
+{% block content %}
+<div class="mb-8 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div
+        class="w-full bg-white border-b border-slate-200 px-4 py-4 sm:px-8 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-5">
+        <div class="flex flex-col items-center sm:flex-row sm:items-center gap-3 sm:gap-5">
+            <div class="flex-shrink-0">
+                <img src="{{ url_for('static', filename='img/logo-removebg-preview.png') }}" alt="College Logo"
+                    class="h-20 w-20 sm:h-24 sm:w-24 object-contain">
+            </div>
+            <div class="text-center sm:text-left">
+                <h1
+                    class="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 leading-snug underline decoration-slate-800 decoration-2 underline-offset-4">
+                    Dr. B. B. Hegde First Grade College, Kundapura
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    Attendance Overview
+                </p>
+            </div>
+        </div>
+        <div class="w-full sm:w-auto flex justify-center sm:justify-end gap-3">
+            <a href="{{ url_for('lecturer_dashboard') }}"
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold shadow-sm transition-colors duration-150">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+            <a href="{{ url_for('logout') }}"
+                class="inline-flex items-center px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-sm transition-colors duration-150">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="space-y-6">
+    <!-- Filters and summary -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-extrabold text-slate-800">My Attendance</h2>
+                <p class="text-slate-500 text-sm mt-1">
+                    View your attendance for today and any month.
+                </p>
+            </div>
+            <form method="get" class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Month</label>
+                    <input type="month" name="month" value="{{ month }}"
+                        class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="sm:w-64">
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Search</label>
+                    <div
+                        class="flex items-center border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500">
+                        <i class="fas fa-search text-slate-400 mr-2 text-sm"></i>
+                        <input type="text" name="q" value="{{ q or '' }}" placeholder="Search status, time, date..."
+                            class="w-full bg-transparent outline-none text-sm text-slate-700 placeholder-slate-400">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit"
+                        class="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-colors duration-150">
+                        <i class="fas fa-filter mr-2"></i> Apply
+                    </button>
+                    <a href="{{ url_for('lecturer_attendance') }}"
+                        class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+                        Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div
+                class="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Today</p>
+                    <p class="text-lg font-extrabold text-emerald-900">
+                        {% if today_records %}Present{% else %}No Mark Yet{% endif %}
+                    </p>
+                </div>
+                <div class="text-emerald-500 text-2xl">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+            </div>
+            <div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total Records This Month</p>
+                <p class="text-lg font-extrabold text-slate-900">{{ records|length }}</p>
+            </div>
+            <div class="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+                <p class="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Current Month</p>
+                <p class="text-lg font-extrabold text-indigo-900">
+                    {{ month }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-50 flex items-center justify-between">
+            <h3 class="font-bold text-slate-800">Daily Attendance Details</h3>
+        </div>
+
+        {% if records %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-100">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Date</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Time</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Status</th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-50">
+                    {% for rec in records %}
+                    <tr class="hover:bg-indigo-50/40 transition-colors">
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-800 font-medium">
+                            {{ rec.display_date or rec.date }}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-600">
+                            <span class="text-xs sm:text-sm">
+                                {{ rec.time_in or '-' }}<span class="mx-1">To</span>{{ rec.time_out or '-' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm">
+                            <span
+                                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
+                                {% if rec.status|lower == 'present' %} bg-emerald-100 text-emerald-800
+                                {% elif rec.status|lower == 'absent' %} bg-rose-100 text-rose-800
+                                {% else %} bg-slate-100 text-slate-700 {% endif %}">
+                                {{ rec.status or 'N/A' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-sm text-slate-500 max-w-xs truncate"
+                            title="{{ rec.extra }}">
+                            {{ rec.extra or '-' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-10 text-center">
+            <div class="text-5xl text-slate-200 mb-3">
+                <i class="fas fa-user-clock"></i>
+            </div>
+            <p class="text-slate-500 text-sm">No attendance records found for this month.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+

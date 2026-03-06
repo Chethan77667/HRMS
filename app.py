@@ -65,6 +65,7 @@ from utils.timetable_processor import pdf_to_faculty_images, extract_timetable_s
 from difflib import get_close_matches
 import json
 import re
+import csv
 
 # Admin Routes
 @app.route('/admin/dashboard')
@@ -124,7 +125,8 @@ def admin_api_recent_leaves():
 @login_required
 @admin_required
 def manage_staff():
-    all_staff = list(users.find({"role": "lecturer"}))
+    # Always show lecturers sorted by Staff ID (BBHCF001, BBHCF002, ...)
+    all_staff = list(users.find({"role": "lecturer"}).sort("staff_id", 1))
     return render_template('admin/manage_staff.html', staff=all_staff)
 
 @app.route('/admin/staff/new', methods=['GET', 'POST'])
@@ -529,12 +531,27 @@ def admin_leaves():
 
     filtered_leaves = [doc for doc in all_leaves if matches_filters(doc)]
 
+    all_lecturers = list(users.find({"role": "lecturer"}).sort("name", 1))
+
     return render_template(
         'admin/leave_requests.html',
         leaves=filtered_leaves,
         q=q,
         month=month,
+        lecturers=all_lecturers,
     )
+
+@app.route('/admin/leaves/api/set_allocation/<id>', methods=['POST'])
+@login_required
+@admin_required
+def api_set_leave_allocation(id):
+    allocated = request.json.get('leaves_per_month', 1)
+    try:
+        allocated = float(allocated)
+    except:
+        allocated = 1
+    users.update_one({"_id": ObjectId(id)}, {"$set": {"leaves_per_month": allocated}})
+    return jsonify({"success": True})
 
 
 @app.route('/admin/leaves/delete-all', methods=['POST'])
@@ -864,7 +881,8 @@ def api_review_leave(id, status):
     return jsonify({"success": True})
 
 def calculate_leaves_left(lecturer_id):
-    total_leaves = 20
+    user_doc = users.find_one({"_id": ObjectId(lecturer_id)})
+    total_leaves = user_doc.get("leaves_per_month", 20) if user_doc else 20
     approved_leaves = list(leaves.find({"lecturer_id": lecturer_id, "status": "Approved"}))
     used_days = 0
     for l in approved_leaves:
@@ -905,6 +923,158 @@ def lecturer_dashboard():
         has_timetable=has_timetable,
         timetable_image_url=timetable_image_url,
         leaves_left=leaves_left
+    )
+
+
+@app.route('/lecturer/attendance')
+@login_required
+@lecturer_required
+def lecturer_attendance():
+    """
+    Attendance view for the logged-in lecturer.
+    Reads JSON attendance files from ATTENDANCE_DIR and filters by this lecturer's staff ID.
+    """
+    base_dir = (os.getenv("ATTENDANCE_DIR") or "").strip()
+    from datetime import datetime
+
+    # Filters
+    selected_month = (request.args.get("month") or "").strip()
+    search_q = (request.args.get("q") or "").strip().lower()
+
+    if not selected_month:
+        selected_month = datetime.now().strftime("%Y-%m")
+
+    # Find staff_id for current lecturer
+    staff_doc = users.find_one({"_id": ObjectId(current_user.id)})
+    staff_id = staff_doc.get("staff_id") if staff_doc else None
+
+    records = []
+    debug_info = {
+        "base_dir": base_dir,
+        "dir_exists": os.path.isdir(base_dir) if base_dir else False,
+        "staff_id": staff_id,
+        "json_files": [],
+        "total_rows_all_files": 0,
+        "rows_for_staff_before_filters": 0,
+    }
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    if base_dir and debug_info["dir_exists"] and staff_id:
+        for fname in os.listdir(base_dir):
+            if not fname.lower().endswith(".json"):
+                continue
+            fpath = os.path.join(base_dir, fname)
+            debug_info["json_files"].append(fname)
+
+            try:
+                with open(fpath, encoding="utf-8") as f:
+                    # Try to load as a JSON array or object first
+                    try:
+                        data = json.load(f)
+                        if isinstance(data, dict):
+                            data = [data]
+                    except json.JSONDecodeError:
+                        # Fallback: newline-delimited JSON objects
+                        f.seek(0)
+                        data = []
+                        for line in f:
+                            line = line.strip()
+                            if not line:
+                                continue
+                            try:
+                                data.append(json.loads(line))
+                            except Exception:
+                                continue
+
+                for row in data:
+                    debug_info["total_rows_all_files"] += 1
+
+                    if row.get("staff_id") != staff_id:
+                        continue
+                    debug_info["rows_for_staff_before_filters"] += 1
+
+                    checkin = row.get("checkin") or ""
+                    checkout = row.get("checkout") or ""
+                    name = row.get("name") or ""
+
+                    # Derive date and month from checkin
+                    iso_date = ""
+                    display_date = ""
+                    time_in = ""
+                    time_out = ""
+                    if checkin:
+                        try:
+                            dt = datetime.fromisoformat(checkin)
+                            iso_date = dt.date().isoformat()
+                            display_date = dt.date().strftime("%d-%m-%Y")
+                            time_in = dt.time().strftime("%H:%M")
+                        except Exception:
+                            # Fallback: first 10 chars as date, last 8 as time if possible
+                            if len(checkin) >= 10:
+                                iso_date = checkin[:10]
+                                try:
+                                    dparts = iso_date.split("-")
+                                    if len(dparts) == 3:
+                                        display_date = f"{dparts[2]}-{dparts[1]}-{dparts[0]}"
+                                except Exception:
+                                    display_date = iso_date
+                            if len(checkin) >= 19:
+                                time_in = checkin[11:16]
+
+                    if checkout:
+                        try:
+                            dt_out = datetime.fromisoformat(checkout)
+                            time_out = dt_out.time().strftime("%H:%M")
+                        except Exception:
+                            if len(checkout) >= 19:
+                                time_out = checkout[11:16]
+
+                    # Month filter based on iso_date (YYYY-MM)
+                    if iso_date and not iso_date.startswith(selected_month):
+                        continue
+
+                    # Simple status from presence of checkin/checkout
+                    if checkin and checkout:
+                        status = "Present"
+                    elif checkin:
+                        status = "Checked-in"
+                    else:
+                        status = "Unknown"
+
+                    extra = f"In: {checkin}  Out: {checkout}"
+                    if name:
+                        extra = f"{name} | " + extra
+
+                    text_blob = f"{iso_date} {time_in} {time_out} {status} {extra}".lower()
+                    if search_q and search_q not in text_blob:
+                        continue
+
+                    records.append({
+                        "date": iso_date,
+                        "display_date": display_date or iso_date,
+                        "time_in": time_in,
+                        "time_out": time_out,
+                        "status": status,
+                        "extra": extra,
+                    })
+            except Exception:
+                continue
+
+    # Sort by date+time descending
+    def sort_key(rec):
+        return (rec.get("date") or "", rec.get("time") or "")
+
+    records.sort(key=sort_key, reverse=True)
+
+    today_records = [r for r in records if r.get("date") == today_str]
+
+    return render_template(
+        "lecturer/attendance.html",
+        records=records,
+        today_records=today_records,
+        month=selected_month,
+        q=search_q,
+        debug_info=debug_info,
     )
 
 @app.route('/lecturer/apply-leave', methods=['GET', 'POST'])
