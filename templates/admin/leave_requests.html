@@ -65,7 +65,7 @@
 
     <!-- Allocations view controls -->
     <div id="allocations-controls" class="block">
-        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+        <div class="flex flex-col lg:flex-row gap-4 items-stretch lg:items-end">
             <div class="w-full sm:w-64">
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Search Staff</label>
                 <div class="relative">
@@ -74,6 +74,19 @@
                     <div class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400">
                         <i class="fas fa-search text-sm"></i>
                     </div>
+                </div>
+            </div>
+            <div class="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Set all to (days / month)</label>
+                    <input type="number" step="0.5" id="setAllValue" value="20"
+                        class="w-full sm:w-32 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                </div>
+                <div class="flex items-end">
+                    <button type="button" onclick="setAllAllocations()"
+                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm h-[38px] mt-1 sm:mt-0">
+                        Set All
+                    </button>
                 </div>
             </div>
         </div>
@@ -339,6 +352,62 @@
                 btn.innerHTML = 'Save';
                 alert('Failed to save. Please try again.');
             });
+    }
+
+    function setAllAllocations() {
+        const valInput = document.getElementById('setAllValue');
+        if (!valInput) return;
+        const value = valInput.value;
+        const rows = document.querySelectorAll('.alloc-row');
+        if (!rows.length) return;
+
+        // Update all inputs visually
+        rows.forEach(row => {
+            const input = row.querySelector('input[id^="alloc-"]');
+            if (input) input.value = value;
+        });
+
+        if (!confirm('Apply this value to all lecturers and save?')) {
+            return;
+        }
+
+        // Save for each lecturer using existing API
+        rows.forEach(row => {
+            const input = row.querySelector('input[id^="alloc-"]');
+            if (!input) return;
+            const id = input.id.replace('alloc-', '');
+            const status = document.getElementById('alloc-status-' + id);
+            const btn = input.parentElement.nextElementSibling.querySelector('button');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch('/admin/leaves/api/set_allocation/' + id, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ leaves_per_month: value })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Save';
+                    if (data.success && status) {
+                        status.classList.remove('hidden');
+                        void status.offsetWidth;
+                        status.classList.add('opacity-100');
+                        setTimeout(() => {
+                            status.classList.remove('opacity-100');
+                            setTimeout(() => status.classList.add('hidden'), 300);
+                        }, 1500);
+                    }
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Save';
+                });
+        });
     }
 
     function filterAllocations() {

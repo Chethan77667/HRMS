@@ -34,6 +34,29 @@ def _extract_faculty_name(text: str) -> str | None:
     """
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
 
+    def _cleanup_name(raw: str) -> str:
+        """
+        OCR sometimes captures extra fields on the same line, e.g.
+        'FACULTY: Mr. RAGHURAM SHETTY MENTOR: ... TOTAL: 17 Hrs'
+        We only want the actual faculty name.
+        """
+        raw = re.sub(r"\s+", " ", (raw or "")).strip()
+        if not raw:
+            return ""
+        # Remove anything after common keywords that appear after the name
+        raw_upper = raw.upper()
+        cut_keywords = ["MENTOR", "TOTAL", "DEPARTMENT", "DEPT", "PRINCIPAL", "TIME TABLE"]
+        cut_idx = None
+        for kw in cut_keywords:
+            m = re.search(rf"\b{re.escape(kw)}\b", raw_upper)
+            if m:
+                cut_idx = m.start() if cut_idx is None else min(cut_idx, m.start())
+        if cut_idx is not None:
+            raw = raw[:cut_idx].strip()
+        # Remove trailing punctuation/dashes/colons
+        raw = re.sub(r"[\s:\-–—]+$", "", raw).strip()
+        return raw
+
     # First, prefer lines that explicitly start with 'FACULTY:'
     for line in lines:
         norm = re.sub(r"\s+", " ", line.upper())
@@ -43,12 +66,12 @@ def _extract_faculty_name(text: str) -> str | None:
         if norm.startswith("FACULTY:"):
             parts = line.split(":", 1)
             if len(parts) == 2:
-                name = parts[1].strip()
-                name = re.sub(r"\s+", " ", name)
+                name = _cleanup_name(parts[1])
                 # Ignore if this is clearly just a year / term (mostly digits)
                 if re.fullmatch(r"[0-9\s\-\(\)IVX]+", name.upper()):
                     continue
-                return name
+                if name:
+                    return name
 
     # Fallback: any line that begins with 'FACULTY' but not 'TIME TABLE'
     for line in lines:
@@ -58,11 +81,11 @@ def _extract_faculty_name(text: str) -> str | None:
         if norm.startswith("FACULTY"):
             parts = re.split(r"[:\-]", line, maxsplit=1)
             if len(parts) == 2:
-                name = parts[1].strip()
-                name = re.sub(r"\s+", " ", name)
+                name = _cleanup_name(parts[1])
                 if re.fullmatch(r"[0-9\s\-\(\)IVX]+", name.upper()):
                     continue
-                return name
+                if name:
+                    return name
     return None
 
 
@@ -72,6 +95,8 @@ def _normalize_name(text: str) -> str:
     of known faculty names (for pages that don't have an explicit FACULTY line).
     """
     text = (text or "").upper()
+    # Remove common trailing fields that are not part of the name
+    text = re.split(r"\b(MENTOR|TOTAL|DEPARTMENT|DEPT)\b", text, maxsplit=1)[0]
     text = re.sub(r"\b(MR|MRS|MS|MISS|DR|PROF|PROFESSOR)\.?\b", "", text)
     text = re.sub(r"[^A-Z\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -283,9 +308,14 @@ def pdf_to_faculty_images(
                     }
                     continue
 
-            # PRINCIPAL line closes the current segment (if any)
-            if current and "PRINCIPAL" in norm and y0 > current.get("top", page_rect.y0):
-                current["bottom"] = y0
+            # PRINCIPAL line closes the current segment (if any).
+            # Guard against OCR/PDF text noise where "PRINCIPAL" is detected too early.
+            if current and "PRINCIPAL" in norm and y0 > (current.get("top", page_rect.y0) + 80):
+                # Close the segment a few units above the PRINCIPAL text so it
+                # does not appear, but keep the entire table (including SATURDAY).
+                trim_margin = 5
+                proposed_bottom = y0 - trim_margin
+                current["bottom"] = max(current.get("top", page_rect.y0) + 100, proposed_bottom)
                 segments.append(current)
                 current = None
 
@@ -295,7 +325,7 @@ def pdf_to_faculty_images(
             segments.append(current)
 
         # If we didn't detect any segments but we have known faculty names,
-        # fall back to single-faculty detection from full page text.
+        # fall back to OCR-based detection from full page text.
         if not segments:
             # OCR once for the page if needed
             ocr_text = ""
@@ -310,6 +340,94 @@ def pdf_to_faculty_images(
                     "Install Tesseract and add it to PATH, or set TESSERACT_CMD "
                     "to the full path of tesseract.exe."
                 ) from e
+            except Exception:
+                image_full = None
+
+            # If this is a scanned PDF, embedded_text is often empty and there may be
+            # multiple timetables on one page. Use OCR word boxes to find multiple
+            # "FACULTY ... PRINCIPAL" segments and crop each one.
+            if image_full is not None:
+                try:
+                    data = pytesseract.image_to_data(image_full, output_type=pytesseract.Output.DICT)
+                    lines = {}
+                    n = len(data.get("text", []))
+                    for i in range(n):
+                        word = (data["text"][i] or "").strip()
+                        if not word:
+                            continue
+                        key = (
+                            data.get("block_num", [0])[i],
+                            data.get("par_num", [0])[i],
+                            data.get("line_num", [0])[i],
+                        )
+                        top = int(data.get("top", [0])[i] or 0)
+                        lines.setdefault(key, {"top": top, "words": []})
+                        lines[key]["top"] = min(lines[key]["top"], top)
+                        lines[key]["words"].append(word)
+
+                    line_items = []
+                    for v in lines.values():
+                        txt = re.sub(r"\s+", " ", " ".join(v["words"]).strip())
+                        if txt:
+                            line_items.append({"top": v["top"], "text": txt})
+                    line_items.sort(key=lambda x: x["top"])
+
+                    faculty_lines = []
+                    principal_tops = []
+                    for item in line_items:
+                        norm = re.sub(r"\s+", " ", item["text"].upper())
+                        if "PRINCIPAL" in norm:
+                            principal_tops.append(item["top"])
+                        if "FACULTY" in norm and "TIME TABLE" not in norm:
+                            nm = _extract_faculty_name(item["text"])
+                            if nm:
+                                faculty_lines.append({"top": item["top"], "faculty_name": nm})
+
+                    principal_tops.sort()
+                    faculty_lines.sort(key=lambda x: x["top"])
+
+                    if faculty_lines:
+                        # A timetable crop should include the grid down to SATURDAY.
+                        # Use a minimum vertical gap so we don't accidentally crop just the header.
+                        min_gap_px = max(180, int(image_full.height * 0.10))
+
+                        for idx, fline in enumerate(faculty_lines):
+                            top_px = max(0, int(fline["top"]) - 10)
+
+                            next_faculty_top = None
+                            if idx + 1 < len(faculty_lines):
+                                next_faculty_top = int(faculty_lines[idx + 1]["top"])
+
+                            bottom_px = None
+
+                            # Prefer the first PRINCIPAL line sufficiently below this FACULTY line
+                            for ptop in principal_tops:
+                                if ptop > top_px + min_gap_px:
+                                    # Cut a very small margin above the PRINCIPAL text.
+                                    bottom_px = int(ptop) - 5
+                                    break
+
+                            # If no PRINCIPAL found, fall back to next FACULTY header
+                            if bottom_px is None and next_faculty_top is not None and next_faculty_top > top_px + min_gap_px:
+                                bottom_px = next_faculty_top - 8
+
+                            if bottom_px is None:
+                                bottom_px = image_full.height
+
+                            bottom_px = max(top_px + min_gap_px, min(image_full.height, bottom_px))
+
+                            cropped = image_full.crop((0, top_px, image_full.width, bottom_px))
+                            entry = {
+                                "page_index": page_index,
+                                "faculty_name": fline["faculty_name"],
+                                "image": cropped,
+                                "ocr_text": ocr_text or embedded_text,
+                            }
+                            pages_with_name.append(entry)
+                        continue
+                except Exception:
+                    # If multi-segment OCR fails, fall back to single-faculty mode below
+                    pass
 
             faculty_name = _extract_faculty_name(ocr_text) or _extract_faculty_name(embedded_text)
 

@@ -17,21 +17,40 @@
     </a>
 </div>
 
-{% if error %}
-<div class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-2">
-    {{ error }}
+<!-- Processing / Result Modal -->
+<div id="processModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="processModalIcon"
+                    class="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-600">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <div>
+                    <h3 id="processModalTitle" class="text-sm font-extrabold text-slate-900">Processing Timetable</h3>
+                    <p id="processModalSubtitle" class="text-xs text-slate-500">Please wait…</p>
+                </div>
+            </div>
+            <button type="button" onclick="hideProcessModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                &times;
+            </button>
+        </div>
+        <div class="p-5">
+            <div id="processModalBody" class="text-sm text-slate-700 whitespace-pre-line"></div>
+            <div class="mt-5 flex justify-end gap-2">
+                <button type="button" onclick="hideProcessModal()"
+                    class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-sm font-semibold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
-{% endif %}
-
-{% if message %}
-<div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-2">
-    {{ message }}
-</div>
-{% endif %}
 
 <div class="mb-8 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
     <h2 class="text-lg font-semibold text-slate-800 mb-4">Upload Timetable PDF</h2>
-    <form method="post" enctype="multipart/form-data" class="space-y-4">
+    <form id="uploadForm" method="post" enctype="multipart/form-data" class="space-y-4">
         <div>
             <label class="block text-sm font-medium text-slate-700 mb-1">Select PDF file</label>
             <input type="file" name="timetable_pdf" accept="application/pdf"
@@ -149,6 +168,37 @@
 </div>
 
 <script>
+    function showProcessModal({ type, title, subtitle, body }) {
+        const modal = document.getElementById('processModal');
+        const icon = document.getElementById('processModalIcon');
+        const titleEl = document.getElementById('processModalTitle');
+        const subEl = document.getElementById('processModalSubtitle');
+        const bodyEl = document.getElementById('processModalBody');
+
+        titleEl.textContent = title || 'Processing';
+        subEl.textContent = subtitle || '';
+        bodyEl.textContent = body || '';
+
+        icon.className = 'w-10 h-10 rounded-xl flex items-center justify-center';
+        if (type === 'success') {
+            icon.classList.add('bg-emerald-50', 'text-emerald-600');
+            icon.innerHTML = '<i class="fas fa-check"></i>';
+        } else if (type === 'error') {
+            icon.classList.add('bg-rose-50', 'text-rose-600');
+            icon.innerHTML = '<i class="fas fa-triangle-exclamation"></i>';
+        } else {
+            icon.classList.add('bg-indigo-50', 'text-indigo-600');
+            icon.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function hideProcessModal() {
+        const modal = document.getElementById('processModal');
+        modal.classList.add('hidden');
+    }
+
     function openTimetableModal(src, name) {
         const modal = document.getElementById('timetable-modal');
         const img = document.getElementById('timetable-modal-image');
@@ -184,6 +234,38 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        // Show result popup if server returned message/error
+        const serverError = {{ (error or '')|tojson }};
+        const serverMsg = {{ (message or '')|tojson }};
+        if (serverError) {
+            showProcessModal({
+                type: 'error',
+                title: 'Error processing PDF',
+                subtitle: 'Please fix the issue and try again.',
+                body: serverError
+            });
+        } else if (serverMsg) {
+            showProcessModal({
+                type: 'success',
+                title: 'Upload complete',
+                subtitle: 'Timetable processing finished successfully.',
+                body: serverMsg
+            });
+        }
+
+        // Show "processing" popup when submitting
+        const form = document.getElementById('uploadForm');
+        if (form) {
+            form.addEventListener('submit', function () {
+                showProcessModal({
+                    type: 'loading',
+                    title: 'Processing Timetable PDF',
+                    subtitle: 'Uploading + detecting faculty names…',
+                    body: 'Please wait. Do not refresh this page.'
+                });
+            });
+        }
+
         const input = document.getElementById('staff-search');
         if (input) {
             input.addEventListener('keyup', function (e) {

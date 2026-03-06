@@ -531,7 +531,9 @@ def admin_leaves():
 
     filtered_leaves = [doc for doc in all_leaves if matches_filters(doc)]
 
-    all_lecturers = list(users.find({"role": "lecturer"}).sort("name", 1))
+    # For allocations view, show lecturers in the same sorted Staff ID order
+    # as the "Add Lecturer / Manage Staff" page (BBHCF001, BBHCF002, ...).
+    all_lecturers = list(users.find({"role": "lecturer"}).sort("staff_id", 1))
 
     return render_template(
         'admin/leave_requests.html',
@@ -588,7 +590,17 @@ def admin_timetables():
                 # Build lecturer list and faculty details BEFORE OCR so we can pass
                 # all known faculty names into the PDF processor (for pages that
                 # don't explicitly contain a 'FACULTY:' label).
-                all_lecturers = list(users.find({"role": "lecturer"}))
+                # Only consider teaching faculty staff IDs like BBHCF001, BBHCF002...
+                # Do NOT match non-faculty patterns like BBHCFN001.
+                staff_id_regex = r"^BBHCF\d+$"
+                all_lecturers = list(
+                    users.find(
+                        {
+                            "role": "lecturer",
+                            "staff_id": {"$regex": staff_id_regex, "$options": "i"},
+                        }
+                    )
+                )
 
                 faculty_details_path = os.path.join(os.path.dirname(__file__), "faculty_detail.json")
                 faculty_details = {}
@@ -621,6 +633,9 @@ def admin_timetables():
                     name = (name or "").upper()
                     # Remove "FACULTY:" prefix if it slipped through
                     name = re.sub(r"^FACULTY\s*[:\-]\s*", "", name)
+                    # OCR sometimes captures extra fields after the name on the same line
+                    # e.g. "RAGHURAM SHETTY MENTOR: ... TOTAL: 17 Hrs"
+                    name = re.split(r"\b(MENTOR|TOTAL|DEPARTMENT|DEPT)\b", name, maxsplit=1)[0]
                     # Remove titles
                     name = re.sub(r"\b(MR|MRS|MS|MISS|DR|PROF|PROFESSOR)\.?\b", "", name)
                     # Remove non-letters except spaces
@@ -676,12 +691,31 @@ def admin_timetables():
                 for staff_id, info in faculty_details.items():
                     if info.get("category") != "Teaching Faculty":
                         continue
+                    if not re.match(staff_id_regex, str(staff_id or ""), flags=re.IGNORECASE):
+                        continue
                     norm = normalize_name(info.get("name", ""))
                     if norm:
                         norm_json_name_to_staff_id[norm] = staff_id
 
-                upload_folder = os.path.join('static', 'timetables')
+                # Use absolute path for Windows stability
+                static_root = os.path.join(os.path.dirname(__file__), "static")
+                upload_folder = os.path.join(static_root, "timetables")
                 os.makedirs(upload_folder, exist_ok=True)
+
+                def _safe_filename(base: str, fallback: str) -> str:
+                    base = (base or "").strip().lower()
+                    base = base.replace("&", "and")
+                    # remove anything after very common separators
+                    base = re.sub(r"\s+", "_", base)
+                    # keep only safe filename chars
+                    base = re.sub(r"[^a-z0-9_\-]+", "_", base)
+                    base = re.sub(r"_+", "_", base).strip("._- ")
+                    if not base:
+                        base = fallback
+                    # avoid Windows reserved names
+                    if base in {"con", "prn", "aux", "nul"} or re.fullmatch(r"com[1-9]|lpt[1-9]", base):
+                        base = f"{fallback}_{base}"
+                    return base[:80]
 
                 matched_count = 0
                 unmatched_pages = []
@@ -736,11 +770,18 @@ def admin_timetables():
 
                     matched_display_name = lecturer.get("name", faculty_name_raw)
 
-                    # Save image
-                    safe_name = matched_display_name.replace(" ", "_").replace(".", "").lower()
+                    # Save image (Windows-safe filename)
+                    fallback = f"lect_{str(lecturer['_id'])}"
+                    safe_name = _safe_filename(matched_display_name, fallback=fallback)
                     filename = f"{safe_name}.png"
                     fs_image_path = os.path.join(upload_folder, filename)
-                    page["image"].save(fs_image_path, format="PNG")
+                    try:
+                        page["image"].save(fs_image_path, format="PNG")
+                    except OSError:
+                        # Fallback to guaranteed safe name
+                        filename = f"{fallback}.png"
+                        fs_image_path = os.path.join(upload_folder, filename)
+                        page["image"].save(fs_image_path, format="PNG")
 
                     # Store a URL-friendly relative path (forward slashes) for static serving
                     url_image_path = f"timetables/{filename}"
@@ -791,7 +832,16 @@ def admin_timetables():
                 error = f"Error processing PDF: {str(e)}"
 
     # For display: list all lecturers with timetable status
-    all_lecturers = list(users.find({"role": "lecturer"}))
+    # Only show teaching faculty staff IDs like BBHCF001, BBHCF002...
+    staff_id_regex = r"^BBHCF\d+$"
+    all_lecturers = list(
+        users.find(
+            {
+                "role": "lecturer",
+                "staff_id": {"$regex": staff_id_regex, "$options": "i"},
+            }
+        )
+    )
     timetable_docs = {doc.get("lecturer_id"): doc for doc in timetable.find({})}
 
     lecturer_rows = []
