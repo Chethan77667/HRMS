@@ -319,14 +319,16 @@ HR / Payroll Office
             return {"ok": False, "reason": f"Unexpected error ({mode}): {e}"}
 
     if last_os_error:
+        tried_str = ', '.join(f"{p['host']}:{p['port']}" for p in profiles)
         return {
             "ok": False,
             "reason": (
-                f"Could not connect to mail server. Tried: {', '.join(f'{p['host']}:{p['port']}' for p in profiles)}. "
+                f"Could not connect to mail server. Tried: {tried_str}. "
                 f"Last error: {last_os_error}. "
                 "If you are on college Wi‑Fi, set SMTP_PORT=465 and SMTP_USE_TLS=false in .env (port 587 is often blocked)."
             ),
         }
+
     if last_smtp_error:
         return {"ok": False, "reason": f"Mail server error: {last_smtp_error}"}
     return {"ok": False, "reason": "Could not send email — no SMTP connection method succeeded."}

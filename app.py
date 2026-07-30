@@ -111,8 +111,8 @@ def handle_500(e):
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data['_id'])
-        self.username = user_data['username']
-        self.role = user_data['role']
+        self.username = user_data.get('username', '')
+        self.role = user_data.get('role', '')
         self.name = user_data.get('name', '')
         self.staff_id = user_data.get('staff_id', '')
         self.designation = user_data.get('designation', '')
@@ -7647,7 +7647,7 @@ def staff_chat_register_socket(data):
 
 if __name__ == '__main__':
     init_db()
-    # On some Windows setups (especially with newer Python), the watchdog reloader can throw WinError 10038.
-    # Disabling the reloader keeps dev runs stable; restart the server manually after code changes.
-    socketio.run(app, host='0.0.0.0', debug=True, port=8000, use_reloader=False, allow_unsafe_werkzeug=True)
+    port = int(os.getenv("PORT", 5000))
+    socketio.run(app, host='0.0.0.0', debug=False, port=port, allow_unsafe_werkzeug=True)
+
 

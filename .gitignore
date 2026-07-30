@@ -1,9 +1,31 @@
+# Environment and secrets
 .env
+.env.*
+!.env.example
+api_keys.txt
+
+# Virtual environments
+.venv/
 venv/
+env/
+ENV/
+
+# Python bytecode and cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs and debug files
+*.log
+chatbot_errors.log
 reconstruction_log.txt
+pdf_content.txt
 scratch/
+
+# Generated files & extracted data dumps
 actual_models.txt
 final_models.txt
 models_list.txt
@@ -14,7 +36,36 @@ extraction_log*.json
 facultytimetable*.json
 reconstructed_*.json
 faculty_upload.xlsx
+Attendence_Report/
+* copy*
+
+# PDF documents and attachments
+*.pdf
+
+# Static uploads & generated assets
 static/timetables/
 static/timetable_splits/
 static/json_timetables/unknown_*.json
+
+# Databases & Instances
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDEs & System files
 .DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+Thumbs.db
+
+# Mobile App builds and node_modules
+mobile-app/node_modules/
+mobile-app/android/
+mobile-app/ios/
+mobile-app/www/
+*.apk
+*.aab
+
